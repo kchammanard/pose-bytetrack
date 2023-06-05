@@ -1,4 +1,4 @@
-# robocup2023-yolov8-pose-estimation
+# robocup2023-pose-estimation
 
 **to kc chamanow:**
 
