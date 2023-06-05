@@ -43,3 +43,6 @@ scikit-image
 # roboflow
 filterpy
 ultralytics
+
+tensorflow
+keras
