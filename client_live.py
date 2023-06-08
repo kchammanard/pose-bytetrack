@@ -5,17 +5,33 @@ import time
 from custom_socket import CustomSocket
 import json
 
-idx = input('Cam index: ')
+
+def list_available_cam(max_n):
+    list_cam = []
+    for n in range(max_n):
+        cap = cv2.VideoCapture(n)
+        ret, _ = cap.read()
+
+        if ret:
+            list_cam.append(n)
+        cap.release()
+    
+    if len(list_cam) == 1:
+        return list_cam[0]
+    else:
+        print(list_cam)
+        return int(input("Cam index: "))
+
 
 host = socket.gethostname()
-port = 8000
+port = 13000
 
 c = CustomSocket(host, port)
 c.clientConnect()
 
-cap = cv2.VideoCapture(int(idx))
-cap.set(4, 720)
-cap.set(3, 1280)
+cap = cv2.VideoCapture(list_available_cam(10))
+cap.set(4, 480)
+cap.set(3, 640)
 
 while cap.isOpened():
 
@@ -26,11 +42,12 @@ while cap.isOpened():
 
     # cv2.imshow('client_cam', frame)
 
-    # print("Send")
+
     msg = c.req(frame)
+
     print(msg)
 
-    # if cv2.waitKey(1) == ord("q"):
-    #     cap.release()
+    if cv2.waitKey(1) == ord("q"):
+        cap.release()
 
 cv2.destroyAllWindows()

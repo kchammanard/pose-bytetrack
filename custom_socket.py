@@ -9,7 +9,7 @@ class CustomSocket:
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        self.SPLITTER = b","
+        self.SPLITTER = b"SPLITTER"
         self.sock = socket.socket()
         self.isServer = False
 
@@ -56,17 +56,24 @@ class CustomSocket:
             data.extend(packet)
         return data
 
-    def recvMsg(self, sock):
+    def recvMsg(self, sock, has_splitter=False):
 
         rawMsgLen = self.recvall(sock, 4)
         if not rawMsgLen:
             return None
         msgLen = struct.unpack('>I', rawMsgLen)[0]
 
+        if has_splitter:
+            return self.recvall(sock, msgLen).split(self.SPLITTER)
+
         return self.recvall(sock, msgLen)
 
     def req(self, image):
-        self.sendMsg(self.sock, image.tobytes())
+        h, w = image.shape[:-1]
+        bh = bytes(str(h),'utf-8')
+        bw = bytes(str(w),'utf-8')
+        msg = self.SPLITTER.join((bh, bw, image.tobytes()))
+        self.sendMsg(self.sock, msg)
         result = self.recvMsg(self.sock)
         result = result.decode('utf-8')
         return json.loads(result)
@@ -86,6 +93,7 @@ class CustomSocket:
 
     def stopServer(self):
         self.sock.shutdown(socket.SHUT_RDWR)
+
 
 
 def main():

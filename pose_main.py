@@ -14,6 +14,10 @@ from keras.models import load_model
 
 model = YOLO("yolov8s-pose.pt")
 
+keras_model = ""
+# keras_model = load_model("model/pose_estimation.h5",compile= False)
+
+
 YOLO_CONF = 0.7
 KEYPOINTS_CONF = 0.7
 
@@ -67,6 +71,8 @@ while cap.isOpened():
 
         processed_kpts = process_keypoints(person_kpts, KEYPOINTS_CONF, FRAME_WIDTH, FRAME_WIDTH)
         print(processed_kpts)
+
+        pred_pose = np.argmax(keras_model.predict(processed_kpts, verbose=0), axis=1)
 
         # Draw points
         for i, pt in enumerate(person_kpts):

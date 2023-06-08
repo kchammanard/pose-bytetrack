@@ -6,12 +6,12 @@ from ultralytics.yolo.utils.plotting import Annotator, colors, save_one_box
 from ultralytics.yolo.utils.torch_utils import select_device
 import yaml
 from random import randint
-from ultralytics.SORT import *
 import pandas as pd
 import os
 import csv
 
-model = YOLO("yolov8s-pose.pt")
+model = YOLO("weights/yolov8s-pose.pt")
+
 
 l=[]
 for c in range(10):
