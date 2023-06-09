@@ -12,9 +12,9 @@ from keras.models import load_model
 
 
 
-model = YOLO("yolov8s-pose.pt")
+model = YOLO("weights/yolov8s-pose.pt")
 
-keras_model = ""
+keras_model = load_model("first_weight")
 # keras_model = load_model("model/pose_estimation.h5",compile= False)
 
 
@@ -37,21 +37,21 @@ def list_available_cam(max_n):
         print(list_cam)
         return int(input("Cam index: "))
     
-def process_keypoints(keypoints, conf, frame_width, frame_height):
+def process_keypoints(keypoints, conf, frame_width, frame_height, origin = (0,0)):
     kpts = np.copy(keypoints)
-    kpts[:,0] = kpts[:,0] / frame_width
-    kpts[:,1] = kpts[:,1] / frame_height
+    kpts[:,0] = (kpts[:,0] - origin[0]) / frame_width
+    kpts[:,1] = (kpts[:,1] - origin[1]) / frame_height
 
     kpts[:,:-1][kpts[:,2] < conf] = [-1,-1]
-    return kpts[:,:-1].flatten()
+    return np.round(kpts[:,:-1].flatten(),4)
 
 
 start = time.time()
 cap = cv2.VideoCapture(list_available_cam(10))
 # cap = cv2.VideoCapture('data/1.mp4')
 
-FRAME_HEIGHT = cap.get(3)
-FRAME_WIDTH = cap.get(4)
+FRAME_WIDTH = cap.get(3)
+FRAME_HEIGHT = cap.get(4)
 
 rand_color_list = np.random.rand(20, 3) * 255
 
@@ -64,15 +64,21 @@ while cap.isOpened():
 
     results = model.predict(source=frame, conf=YOLO_CONF, show=True, verbose=False)[0]
     kpts = results.keypoints.cpu().numpy()
-  
+    boxes = results.boxes.data.cpu().numpy()
+    # print(boxes)
     # print(kpts)
 
-    for person_kpts in kpts:
+    for person_kpts, person_box in zip(kpts, boxes):
+        x1, y1, x2, y2 = person_box[:-2]
+        # print(x1,y1)
 
-        processed_kpts = process_keypoints(person_kpts, KEYPOINTS_CONF, FRAME_WIDTH, FRAME_WIDTH)
-        print(processed_kpts)
+        processed_kpts = process_keypoints(person_kpts, KEYPOINTS_CONF, FRAME_WIDTH, FRAME_HEIGHT, (x1, y1))
+        # print(processed_kpts)
 
-        pred_pose = np.argmax(keras_model.predict(processed_kpts, verbose=0), axis=1)
+        pred_pose = np.argmax(keras_model.predict(processed_kpts.reshape((1,34)), verbose=0), axis=1)
+        print(pred_pose[0])
+
+        cv2.rectangle(frame, (int(x1), int(y1)),(int(x2), int(y2)), (255,0,0), 2)
 
         # Draw points
         for i, pt in enumerate(person_kpts):

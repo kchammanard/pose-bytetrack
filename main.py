@@ -8,9 +8,13 @@ import socket
 import json
 import numpy as np
 import traceback
+from tensorflow import keras
+import tensorflow as tf
+from keras.models import load_model
 
 
 WEIGHT = "weights/yolov8s-pose.pt"
+KERAS_WEIGHT = "first_weight"
 DATASET_NAME = "coco"
 # DATASET_NAME = {0: "coke"}
 # DATASET_NAME = {0: "coke", 1: "milk", 2: "waterbottle"
@@ -24,13 +28,13 @@ DATASET_NAME = "coco"
 YOLO_CONF = 0.7
 KEYPOINTS_CONF = 0.7
 
-def process_keypoints(keypoints, conf, frame_width, frame_height):
+def process_keypoints(keypoints, conf, frame_width, frame_height, origin = (0,0)):
     kpts = np.copy(keypoints)
-    kpts[:,0] = kpts[:,0] / frame_width
-    kpts[:,1] = kpts[:,1] / frame_height
+    kpts[:,0] = (kpts[:,0] - origin[0]) / frame_width
+    kpts[:,1] = (kpts[:,1] - origin[1]) / frame_height
 
     kpts[:,:-1][kpts[:,2] < conf] = [-1,-1]
-    return kpts[:,:-1].flatten()
+    return np.round(kpts[:,:-1].flatten(),4)
 
 
 def main():
@@ -42,7 +46,7 @@ def main():
 
     model = YOLO(WEIGHT)
 
-    keras_model = ""
+    keras_model = load_model(KERAS_WEIGHT)
     # keras_model = load_model("model/pose_estimation.h5",compile= False)
 
     while True:
@@ -50,7 +54,7 @@ def main():
         conn, addr = server.sock.accept()
         print("Client connected from", addr)
 
-        start = time.time()
+        # start = time.time()
 
         # Process frame received from client
         while True:
@@ -65,16 +69,20 @@ def main():
 
                 results = model.predict(source=img, conf=YOLO_CONF, show=True, verbose=False)[0]
                 kpts = results.keypoints.cpu().numpy()
+                boxes = results.boxes.data.cpu().numpy()
 
-                for id, person_kpts in enumerate(kpts):
+                for id, person_pred in enumerate(zip(kpts, boxes)):
 
-                    processed_kpts = process_keypoints(person_kpts, KEYPOINTS_CONF, frame_height, frame_width)
-                    print(processed_kpts)
+                    person_kpts, person_box = person_pred
+                    x1, y1, x2, y2 = person_box[:-2]
 
-                    # pred_pose = np.argmax(keras_model.predict(processed_kpts, verbose=0), axis=1)
-                    pred_pose = 1
+                    processed_kpts = process_keypoints(person_kpts, KEYPOINTS_CONF, frame_width, frame_height, (x1, y1))
+                    # print(processed_kpts)
 
-                    res[id] = pred_pose
+                    pred_pose = np.argmax(keras_model.predict(processed_kpts.reshape((1, 34)), verbose=0), axis=1)
+                    print(pred_pose[0])
+
+                    res[id] = int(pred_pose[0])
 
                     # Draw points
                     for i, pt in enumerate(person_kpts):
