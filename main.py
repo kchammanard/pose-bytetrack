@@ -39,7 +39,7 @@ def process_keypoints(keypoints, conf, frame_width, frame_height, origin = (0,0)
 
 def main():
     HOST = socket.gethostname()
-    PORT = 13000
+    PORT = 12302
 
     server = CustomSocket(HOST, PORT)
     server.startServer()
