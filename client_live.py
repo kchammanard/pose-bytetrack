@@ -15,7 +15,7 @@ def list_available_cam(max_n):
         if ret:
             list_cam.append(n)
         cap.release()
-    
+
     if len(list_cam) == 1:
         return list_cam[0]
     else:
@@ -41,7 +41,6 @@ while cap.isOpened():
         continue
 
     # cv2.imshow('client_cam', frame)
-
 
     msg = c.req(frame)
 

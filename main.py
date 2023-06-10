@@ -10,11 +10,10 @@ import numpy as np
 import traceback
 from tensorflow import keras
 import tensorflow as tf
-from keras.models import load_model
 
 
 WEIGHT = "weights/yolov8s-pose.pt"
-KERAS_WEIGHT = "first_weight"
+KERAS_WEIGHT = "weights/first_weight.h5"
 DATASET_NAME = "coco"
 # DATASET_NAME = {0: "coke"}
 # DATASET_NAME = {0: "coke", 1: "milk", 2: "waterbottle"
@@ -28,13 +27,14 @@ DATASET_NAME = "coco"
 YOLO_CONF = 0.7
 KEYPOINTS_CONF = 0.7
 
-def process_keypoints(keypoints, conf, frame_width, frame_height, origin = (0,0)):
-    kpts = np.copy(keypoints)
-    kpts[:,0] = (kpts[:,0] - origin[0]) / frame_width
-    kpts[:,1] = (kpts[:,1] - origin[1]) / frame_height
 
-    kpts[:,:-1][kpts[:,2] < conf] = [-1,-1]
-    return np.round(kpts[:,:-1].flatten(),4)
+def process_keypoints(keypoints, conf, frame_width, frame_height, origin=(0, 0)):
+    kpts = np.copy(keypoints)
+    kpts[:, 0] = (kpts[:, 0] - origin[0]) / frame_width
+    kpts[:, 1] = (kpts[:, 1] - origin[1]) / frame_height
+
+    kpts[:, :-1][kpts[:, 2] < conf] = [-1, -1]
+    return np.round(kpts[:, :-1].flatten(), 4)
 
 
 def main():
@@ -46,8 +46,20 @@ def main():
 
     model = YOLO(WEIGHT, task="pose")
 
-    keras_model = load_model(KERAS_WEIGHT)
-    # keras_model = load_model("model/pose_estimation.h5",compile= False)
+    # Limit Keras GPU Usage
+    gpus = tf.config.experimental.list_physical_devices("GPU")
+    if gpus:
+        try:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices("GPU")
+            print(len(gpus), "Physical GPUs, ",
+                  len(logical_gpus), "Logical GPUs")
+
+        except RuntimeError as e:
+            print(e)
+
+    keras_model = keras.models.load_model(KERAS_WEIGHT, compile=False)
 
     while True:
         # Wait for connection from client :}
@@ -64,10 +76,12 @@ def main():
 
                 frame_height, frame_width = int(data[0]), int(data[1])
                 # print(frame_height, frame_width)
-                
-                img = np.frombuffer(data[-1], dtype=np.uint8).reshape(frame_height, frame_width, 3)
 
-                results = model.track(source=img, conf=YOLO_CONF, show=True, verbose=False, persist=True)[0]
+                img = np.frombuffer(
+                    data[-1], dtype=np.uint8).reshape(frame_height, frame_width, 3)
+
+                results = model.track(
+                    source=img, conf=YOLO_CONF, show=True, verbose=False, persist=True)[0]
                 kpts = results.keypoints.cpu().numpy()
                 boxes = results.boxes.data.cpu().numpy()
 
@@ -76,10 +90,12 @@ def main():
                     x1, y1, x2, y2 = person_box[:4]
                     person_id = int(person_box[4])
 
-                    processed_kpts = process_keypoints(person_kpts, KEYPOINTS_CONF, frame_width, frame_height, (x1, y1))
+                    processed_kpts = process_keypoints(
+                        person_kpts, KEYPOINTS_CONF, frame_width, frame_height, (x1, y1))
                     # print(processed_kpts)
 
-                    pred_pose = np.argmax(keras_model.predict(processed_kpts.reshape((1, 34)), verbose=0), axis=1)
+                    pred_pose = np.argmax(keras_model.predict(
+                        processed_kpts.reshape((1, 34)), verbose=0), axis=1)
                     print(pred_pose[0])
 
                     res[person_id] = int(pred_pose[0])
@@ -88,7 +104,8 @@ def main():
                     for i, pt in enumerate(person_kpts):
                         x, y, p = pt
                         if p >= KEYPOINTS_CONF:
-                            cv2.putText(img, str(i), (int(x),int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                            cv2.putText(img, str(i), (int(x), int(
+                                y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
                 # Send back result
                 # print(res)
