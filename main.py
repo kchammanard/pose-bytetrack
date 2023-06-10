@@ -44,7 +44,7 @@ def main():
     server = CustomSocket(HOST, PORT)
     server.startServer()
 
-    model = YOLO(WEIGHT)
+    model = YOLO(WEIGHT, task="pose")
 
     keras_model = load_model(KERAS_WEIGHT)
     # keras_model = load_model("model/pose_estimation.h5",compile= False)
@@ -67,14 +67,14 @@ def main():
                 
                 img = np.frombuffer(data[-1], dtype=np.uint8).reshape(frame_height, frame_width, 3)
 
-                results = model.predict(source=img, conf=YOLO_CONF, show=True, verbose=False)[0]
+                results = model.track(source=img, conf=YOLO_CONF, show=True, verbose=False, persist=True)[0]
                 kpts = results.keypoints.cpu().numpy()
                 boxes = results.boxes.data.cpu().numpy()
 
-                for id, person_pred in enumerate(zip(kpts, boxes)):
-
+                for person_pred in zip(kpts, boxes):
                     person_kpts, person_box = person_pred
-                    x1, y1, x2, y2 = person_box[:-2]
+                    x1, y1, x2, y2 = person_box[:4]
+                    person_id = int(person_box[4])
 
                     processed_kpts = process_keypoints(person_kpts, KEYPOINTS_CONF, frame_width, frame_height, (x1, y1))
                     # print(processed_kpts)
@@ -82,7 +82,7 @@ def main():
                     pred_pose = np.argmax(keras_model.predict(processed_kpts.reshape((1, 34)), verbose=0), axis=1)
                     print(pred_pose[0])
 
-                    res[id] = int(pred_pose[0])
+                    res[person_id] = int(pred_pose[0])
 
                     # Draw points
                     for i, pt in enumerate(person_kpts):

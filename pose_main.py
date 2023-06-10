@@ -12,7 +12,7 @@ from keras.models import load_model
 
 
 
-model = YOLO("weights/yolov8s-pose.pt")
+model = YOLO("weights/yolov8s-pose.pt", task="pose")
 
 keras_model = load_model("first_weight")
 # keras_model = load_model("model/pose_estimation.h5",compile= False)
@@ -62,14 +62,18 @@ while cap.isOpened():
         print("Error")
         continue
 
-    results = model.predict(source=frame, conf=YOLO_CONF, show=True, verbose=False)[0]
+    results = model.track(source=frame, conf=YOLO_CONF, show=True, verbose=False, persist=True)[0]
     kpts = results.keypoints.cpu().numpy()
     boxes = results.boxes.data.cpu().numpy()
     # print(boxes)
     # print(kpts)
 
     for person_kpts, person_box in zip(kpts, boxes):
-        x1, y1, x2, y2 = person_box[:-2]
+        # print(person_box)
+        x1, y1, x2, y2 = person_box[:4]
+        person_id = int(person_box[4])
+        # print(person_id)
+
         # print(x1,y1)
 
         processed_kpts = process_keypoints(person_kpts, KEYPOINTS_CONF, FRAME_WIDTH, FRAME_HEIGHT, (x1, y1))
