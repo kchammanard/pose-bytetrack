@@ -23,8 +23,16 @@ if gpus:
 
 model = YOLO("weights/yolov8s-pose.pt", task="pose")
 
-keras_model = keras.models.load_model("weights/first_weight.h5", compile=False)
-# keras_model = load_model("model/pose_estimation.h5",compile= False)
+print("Loading Keras Model")
+try:
+    keras_model = keras.models.load_model(
+        "weights/first_weight.h5", compile=False)
+    pred_keras = True
+    print("DONE")
+except:
+    print("Error while loading keras model")
+    pred_keras = False
+    keras_model = ""
 
 
 YOLO_CONF = 0.7

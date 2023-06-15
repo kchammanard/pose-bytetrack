@@ -44,7 +44,9 @@ def main():
     server = CustomSocket(HOST, PORT)
     server.startServer()
 
+    print("Loading YOLO")
     model = YOLO(WEIGHT, task="pose")
+    print("DONE")
 
     # Limit Keras GPU Usage
     gpus = tf.config.experimental.list_physical_devices("GPU")
@@ -59,7 +61,15 @@ def main():
         except RuntimeError as e:
             print(e)
 
-    keras_model = keras.models.load_model(KERAS_WEIGHT, compile=False)
+    print("Loading Keras Model")
+    try:
+        keras_model = keras.models.load_model(KERAS_WEIGHT, compile=False)
+        pred_keras = True
+        print("DONE")
+    except:
+        print("Error while loading keras model")
+        pred_keras = False
+        keras_model = ""
 
     while True:
         # Wait for connection from client :}
@@ -94,11 +104,14 @@ def main():
                         person_kpts, KEYPOINTS_CONF, frame_width, frame_height, (x1, y1))
                     # print(processed_kpts)
 
-                    pred_pose = np.argmax(keras_model.predict(
-                        processed_kpts.reshape((1, 34)), verbose=0), axis=1)
-                    print(pred_pose[0])
+                    if pred_keras:
+                        pred_pose = np.argmax(keras_model.predict(
+                            processed_kpts.reshape((1, 34)), verbose=0), axis=1)
+                        print(pred_pose[0])
 
-                    res[person_id] = int(pred_pose[0])
+                        res[person_id] = int(pred_pose[0])
+                    else:
+                        res[person_id] = "NA"
 
                     # Draw points
                     for i, pt in enumerate(person_kpts):
