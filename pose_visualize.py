@@ -11,6 +11,12 @@ import numpy as np
 import os
 
 
+JOINT_LINES = [(0, 1), (2, 3), (4, 5), (6, 7), (1, 2),
+               (0, 3), (5, 6), (4, 7), (0, 7), (1, 6), (2, 5), (3, 4)]
+FACES = [(0, 1, 2, 3), (4, 5, 6, 7), (0, 3, 4, 7),
+         (1, 2, 5, 6), (0, 1, 6, 7), (2, 3, 4, 5)]
+
+
 def list_available_cam(max_n):
     list_cam = []
     for n in range(max_n):
@@ -28,14 +34,31 @@ def list_available_cam(max_n):
         return int(input("Cam index: "))
 
 
-def draw_3d(frame, keypoints, joint_list):
+def draw_points(frame, keypoints, color=(0, 0, 255)):
+    for i, pt in enumerate(keypoints):
+        x, y = pt
+        cv2.putText(frame, str(i), (int(x), int(y)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+
+def draw_3d_lines(frame, keypoints, joint_list):
     for joint in joint_list:
         cv2.line(frame, [int(k) for k in keypoints[joint[0]]], [
                  int(k) for k in keypoints[joint[1]]], (255, 0, 0), 2)
 
 
-model = YOLO("weights/snack_pose.pt", task="pose")
-cap = cv2.VideoCapture("data/snack_vid.mp4")
+def get_face_center(keypoints, faces_index_list):
+    face_centroid = []
+    for face in faces_index_list:
+        corner_coord = np.array([keypoints[index] for index in face])
+        # print(corner_coord)
+        # print(np.mean(corner_coord, axis=0))
+        face_centroid.append(np.mean(corner_coord, axis=0))
+    return np.array(face_centroid)
+
+
+model = YOLO("weights/snack-pose.pt", task="pose")
+cap = cv2.VideoCapture(list_available_cam(5))
 
 YOLO_CONF = 0.7
 KEYPOINTS_CONF = 0.7
@@ -66,17 +89,15 @@ while cap.isOpened():
         obj_id = int(obj_box[4])
         print(obj_id)
 
+        faces_centroid = get_face_center(obj_kpts, FACES)
+        print(faces_centroid)
+        draw_points(frame, faces_centroid, (128, 128, 0))
+
         cv2.rectangle(frame, (int(x1), int(y1)),
                       (int(x2), int(y2)), (0, 255, 0), 2)
 
-        # Draw points
-        for i, pt in enumerate(obj_kpts):
-            x, y = pt
-            cv2.putText(frame, str(i), (int(x), int(y)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-
-        draw_3d(frame, obj_kpts, [(0, 1), (2, 3), (4, 5), (6, 7), (1, 2),
-                (0, 3), (5, 6), (4, 7), (0, 7), (1, 6), (2, 5), (3, 4)])
+        draw_3d_lines(frame, obj_kpts, JOINT_LINES)
+        draw_points(frame, obj_kpts)
 
     cv2.putText(frame, "fps: " + str(round(1 / (time.time() - start), 2)), (10, int(cap.get(4)) - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
