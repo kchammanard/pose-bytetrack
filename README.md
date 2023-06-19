@@ -1,4 +1,4 @@
-# robocup2023-face-recognition
+# robocup2023-pose-estimation
 Person Pose Estimation using YoloV8 Pose for EIC RoboCup@Home 2023
 
 
