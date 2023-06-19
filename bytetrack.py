@@ -126,9 +126,9 @@ while cap.isOpened():
         tracks_boxes = tracks2boxes(tracks=targets)
         matched_detections = match_detections_with_tracks(person_box[:4][np.newaxis,:],targets)
 
-        print("boxes:", person_box[:4][np.newaxis,:])
-        print("track_boxes:", tracks_boxes) #predicted by bytetrack
-        print("targets:", targets)
+        #print("boxes:", person_box[:4][np.newaxis,:])
+        #print("track_boxes:", tracks_boxes) #predicted by bytetrack
+        #print("targets:", targets)
         print("matched:", matched_detections)
 
         cv2.rectangle(frame, (int(x1), int(y1)),
