@@ -29,6 +29,17 @@ if gpus:
 
 model = YOLO("weights/yolov8s-pose.pt", task="pose")
 
+print("Loading Keras Model")
+try:
+    keras_model = keras.models.load_model(
+        "weights/first_weight.h5", compile=False)
+    pred_keras = True
+    print("DONE")
+except:
+    print("Error while loading keras model")
+    pred_keras = False
+    keras_model = ""
+
 KEYPOINTS_CONF = 0.7
 YOLO_CONF = 0.7
 
@@ -67,7 +78,7 @@ def tracks2boxes(tracks: List[STrack]) -> np.ndarray:
 
 def match_detections_with_tracks(
     detections: np.ndarray,
-    tracks: List[STrack]
+    tracks: List[STrack],
 ) -> np.ndarray:
     detection_boxes = detections[:, :4].astype(float)
     tracks_boxes = tracks2boxes(tracks=tracks)
@@ -109,14 +120,18 @@ while cap.isOpened():
     kpts = results.keypoints.cpu().numpy()
     boxes = results.boxes.data.cpu().numpy()
     # print(kpts)
-
+    output = {}
     for person_kpts, person_box in zip(kpts, boxes):
         # print(person_box)
+
         x1, y1, x2, y2 = person_box[:4]
-        person_id = int(person_box[4])
+        #person_id = int(person_box[4])
 
         processed_kpts = process_keypoints(
             person_kpts, KEYPOINTS_CONF, FRAME_WIDTH, FRAME_HEIGHT, (x1, y1))
+        
+        pred_pose = np.argmax(keras_model.predict(
+            processed_kpts.reshape((1, 34)), verbose=0), axis=1)
 
         dets = np.array(person_box[:5])[np.newaxis,:]
         info_imgs = (FRAME_HEIGHT, FRAME_WIDTH)
@@ -125,11 +140,14 @@ while cap.isOpened():
         targets = tracker.update(dets,info_imgs,img_size)
         tracks_boxes = tracks2boxes(tracks=targets)
         matched_detections = match_detections_with_tracks(person_box[:4][np.newaxis,:],targets)
+        if np.size(matched_detections) != 0:
+            person_id = matched_detections[0][4]
+            output[int(person_id)] = {"name": pred_pose[0], "bbox": matched_detections[0][:4]}
 
         #print("boxes:", person_box[:4][np.newaxis,:])
         #print("track_boxes:", tracks_boxes) #predicted by bytetrack
         #print("targets:", targets)
-        print("matched:", matched_detections)
+        #print("matched:", matched_detections)
 
         cv2.rectangle(frame, (int(x1), int(y1)),
                       (int(x2), int(y2)), (255, 0, 0), 2)
@@ -140,6 +158,8 @@ while cap.isOpened():
             if p >= KEYPOINTS_CONF:
                 cv2.putText(frame, str(i), (int(x), int(y)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                
+    print(output)
 
     cv2.putText(frame, "fps: " + str(round(1 / (time.time() - start), 2)), (10, int(cap.get(4)) - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)

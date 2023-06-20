@@ -43,7 +43,7 @@ scikit-image
 # roboflow
 filterpy
 ultralytics
-lap>=0.4
+#lap>=0.4
 tensorflow
 keras
 ipykernel
